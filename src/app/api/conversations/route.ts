@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url)
-  const sessionId = searchParams.get('session')
+  const userId = searchParams.get('session')
   const limit = parseInt(searchParams.get('limit') || '50')
 
   let query = supabase
@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  if (sessionId) {
-    query = query.eq('session_id', sessionId)
+  if (userId) {
+    query = query.eq('user_id', userId)
   }
 
   const { data, error } = await query
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   // Group by session
   const grouped: any = {}
   data?.forEach((msg: any) => {
-    const sid = msg.session_id || 'unknown'
+    const sid = msg.user_id || 'unknown'
     if (!grouped[sid]) grouped[sid] = []
     grouped[sid].unshift(msg)
   })

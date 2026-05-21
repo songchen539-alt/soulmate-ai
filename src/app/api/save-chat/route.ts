@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 
 export async function POST(req: Request) {
   try {
-    const { messages, sessionId } = await req.json()
+    const { messages, userId } = await req.json()
     
     if (!supabase) {
       return Response.json({ error: 'Database not configured' })
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       .from('conversations')
       .insert(
         messages.map((m: any) => ({
-          session_id: sessionId || 'anonymous',
+          user_id: userId || 'anonymous',
           role: m.role,
           content: m.content,
           created_at: new Date().toISOString()
