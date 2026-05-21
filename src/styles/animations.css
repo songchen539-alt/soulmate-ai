@@ -1,0 +1,76 @@
+/* SoulMate AI Animations */
+/* Subtle, elegant, Apple-inspired */
+
+/* Float */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Pulse soft */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* Glow pulse */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.1); }
+  50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.2); }
+}
+
+/* Fade in up */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Typing dot */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Utilities */
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out;
+}
+
+.animate-typing-dot {
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+/* Delays */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* Report reveal stagger */
+.report-item {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: fade-up 0.5s ease-out forwards;
+}
+
+.report-item:nth-child(1) { animation-delay: 0.1s; }
+.report-item:nth-child(2) { animation-delay: 0.2s; }
+.report-item:nth-child(3) { animation-delay: 0.3s; }
+.report-item:nth-child(4) { animation-delay: 0.4s; }
+.report-item:nth-child(5) { animation-delay: 0.5s; }
+.report-item:nth-child(6) { animation-delay: 0.6s; }
+.report-item:nth-child(7) { animation-delay: 0.7s; }
+.report-item:nth-child(8) { animation-delay: 0.8s; }
