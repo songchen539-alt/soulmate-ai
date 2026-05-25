@@ -1,44 +1,33 @@
--- SoulMate AI - Supabase 建表SQL
--- 在 Supabase SQL Editor 中运行
+-- SoulMate 匹配系统表
 
--- 1. 候补名单
-create table waitlist (
+-- 1. 用户资料
+create table profiles (
   id uuid default gen_random_uuid() primary key,
-  email text,
-  instagram text,
-  tiktok text,
-  created_at timestamp default now()
-);
-
--- 2. 对话记录
-create table conversations (
-  id uuid default gen_random_uuid() primary key,
-  user_id text,
-  role text,
-  content text,
-  created_at timestamp default now()
-);
-
--- 3. Soul Reports
-create table soul_reports (
-  id uuid default gen_random_uuid() primary key,
-  user_id text,
+  nickname text,
+  bio text,
+  looking_for text,
   soul_type text,
-  personality_summary text,
-  emotional_pattern text,
-  communication_style text,
-  relationship_strengths text,
-  relationship_risks text,
-  ideal_partner text,
-  poetic_summary text,
+  dimensions jsonb,  -- 五维数据
+  avatar_color text default '#8B5CF6',
   created_at timestamp default now()
 );
 
--- 开启RLS
-alter table waitlist enable row level security;
-alter table conversations enable row level security;
-alter table soul_reports enable row level security;
+-- 2. 匹配请求
+create table matches (
+  id uuid default gen_random_uuid() primary key,
+  from_profile_id uuid references profiles(id),
+  to_profile_id uuid references profiles(id),
+  status text default 'pending',  -- pending, accepted, rejected
+  compatibility_score int,
+  created_at timestamp default now()
+);
 
--- 索引
-create index idx_conversations_user on conversations(user_id);
-create index idx_reports_user on soul_reports(user_id);
+-- 3. Soul Gallery (公开展示)
+create view soul_gallery as
+  select id, nickname, bio, looking_for, soul_type, dimensions, avatar_color, created_at
+  from profiles
+  order by created_at desc;
+
+-- RLS
+alter table profiles enable row level security;
+alter table matches enable row level security;
