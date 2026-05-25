@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import LogoutButton from './logout-button'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -15,44 +17,50 @@ const LOADING_MSGS = [
 ]
 
 const OPENING = "Hey :)\n\nHow's your day going?"
-
-function loadMsgs(): Message[] {
-  if (typeof window === 'undefined') return [{ role: 'assistant', content: OPENING }]
-  try {
-    const ver = localStorage.getItem('sm_ver')
-    if (ver !== '4') { localStorage.clear(); localStorage.setItem('sm_ver', '4'); return [{ role: 'assistant', content: OPENING }] }
-    const d = localStorage.getItem('sm_msgs')
-    if (d) { const p = JSON.parse(d); if (p.length >= 2) return p }
-  } catch {}
-  return [{ role: 'assistant', content: OPENING }]
-}
-
-function saveMsgs(m: Message[]) {
-  try { localStorage.setItem('sm_msgs', JSON.stringify(m)) } catch {}
-}
+const initialMessages: Message[] = [{ role: 'assistant', content: OPENING }]
 
 export default function ChatBox() {
-  const [messages, setMessages] = useState<Message[]>(loadMsgs)
+  const router = useRouter()
+  const [messages, setMessages] = useState<Message[]>(initialMessages)
+  const [hydrated, setHydrated] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
   const [loadingMsg, setLoadingMsg] = useState('')
   const [error, setError] = useState('')
-  const [showReport, setShowReport] = useState(false)
-  const [reportData, setReportData] = useState<any>(null)
-  const [reportReady, setReportReady] = useState(false)
-  const [reflecting, setReflecting] = useState(false)
-  const [showJourney, setShowJourney] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const analyzingRef = useRef(false)
 
-  const userTurns = messages.filter(m => m.role === 'user').length
-  const canGenerate = userTurns >= 20 && !analyzing && !loading
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem('sm_msgs')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.length >= 2) setMessages(parsed)
+      }
+    } catch {}
+    setHydrated(true)
+  }, [])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
-  useEffect(() => { if (!loading && !analyzing) setTimeout(() => inputRef.current?.focus(), 100) }, [loading, analyzing])
-  useEffect(() => { saveMsgs(messages) }, [messages])
+  // Save messages after hydration
+  useEffect(() => {
+    if (hydrated) {
+      try { window.localStorage.setItem('sm_msgs', JSON.stringify(messages)) } catch {}
+    }
+  }, [hydrated, messages])
+
+  const userTurns = messages.filter(m => m.role === 'user').length
+  const showReportBtn = messages.length >= 18 && !analyzing && !loading && hydrated
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  useEffect(() => {
+    if (!loading && !analyzing) setTimeout(() => inputRef.current?.focus(), 100)
+  }, [loading, analyzing])
 
   const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
@@ -79,40 +87,15 @@ export default function ChatBox() {
       const data = await res.json()
       clearInterval(interval)
       if (data.error || !data.report) { setError('Something interrupted the reflection. Try again.'); setAnalyzing(false); analyzingRef.current = false; return }
-      setReportData(data); setReportReady(true); setAnalyzing(false); analyzingRef.current = false; setShowReport(true)
+      setAnalyzing(false); analyzingRef.current = false
+      try { window.localStorage.removeItem('sm_msgs') } catch {}
+      router.push(`/report?data=${encodeURIComponent(JSON.stringify(data))}`)
     } catch {
       clearInterval(interval)
       setError('Something interrupted the reflection. Try again.')
       setAnalyzing(false); analyzingRef.current = false
     }
-  }, [messages])
-
-  const closeReport = () => {
-    setShowReport(false)
-    setMessages(prev => [...prev, { role: 'assistant', content: "Now that I understand you a little better, I'm curious about something else. What's something you've been thinking about lately?" }])
-  }
-
-  const weeklyReflection = async () => {
-    setReflecting(true)
-    const conversation = messages.map(m => (m.role === 'user' ? 'User: ' : 'AI: ') + m.content).join('\n')
-    try {
-      const res = await fetch('/api/analyze', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation, mode: 'reflection' })
-      })
-      const data = await res.json()
-      if (data.reflection) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reflection }])
-        // Save to journey timeline
-        try {
-          const existing = JSON.parse(localStorage.getItem('sm_journey') || '[]')
-          existing.push({ date: new Date().toISOString(), text: data.reflection })
-          localStorage.setItem('sm_journey', JSON.stringify(existing))
-        } catch {}
-      }
-    } catch {}
-    setReflecting(false)
-  }
+  }, [messages, router])
 
   const sendMessage = async () => {
     if (!input.trim() || loading || analyzing) return
@@ -139,9 +122,13 @@ export default function ChatBox() {
   }
 
   const newChat = () => {
-    try { localStorage.removeItem('sm_msgs') } catch {}
+    try { window.localStorage.removeItem('sm_msgs') } catch {}
     setMessages([{ role: 'assistant', content: OPENING }])
-    setReportData(null); setReportReady(false); setShowReport(false); setError(''); analyzingRef.current = false
+    setAnalyzing(false); setLoading(false); setError(''); analyzingRef.current = false
+  }
+
+  if (!hydrated) {
+    return <div className="min-h-screen bg-black" />
   }
 
   return (
@@ -154,25 +141,21 @@ export default function ChatBox() {
           </div>
           <span className="text-sm font-medium text-zinc-300">SoulMate</span>
         </div>
-        <div className="flex items-center gap-2">
-          {!analyzing && !reportReady && (
+        <div className="flex items-center gap-3">
+          {!analyzing && userTurns >= 16 && !loading && (
             <button onClick={generateReport}
-              className="text-xs text-zinc-400 border border-zinc-700 rounded-full px-3 py-1 hover:text-zinc-200 hover:border-zinc-500 transition">
+              className={`text-xs rounded-full px-3 py-1 border transition ${
+                userTurns >= 16 ? 'text-zinc-300 border-zinc-600 hover:text-white hover:border-zinc-400' : 'text-zinc-700 border-zinc-800 cursor-not-allowed'
+              }`}
+              disabled={userTurns < 16}>
               {'✨ Reflection'}
             </button>
           )}
-          {reportReady && !showReport && (
-            <button onClick={() => setShowReport(true)}
-              className="text-xs text-purple-400 border border-purple-900/50 rounded-full px-3 py-1 hover:text-purple-300 transition">
-              {'✨ View'}
-            </button>
-          )}
           {userTurns > 0 && !analyzing && (
-            <button onClick={newChat} className="text-xs text-zinc-600 hover:text-zinc-400 transition ml-1">New</button>
+            <button onClick={newChat} className="text-xs text-zinc-600 hover:text-zinc-400 transition">New</button>
           )}
-          <button onClick={async () => { try { const m = await import("@/lib/supabase"); if (m.supabase) await m.supabase.auth.signOut() } catch {}; window.location.href = "/login" }}
-            className="text-xs text-zinc-700 hover:text-zinc-500 transition ml-2">Exit</button>
           {analyzing && <span className="text-xs text-zinc-500 animate-pulse">{loadingMsg}</span>}
+          <LogoutButton />
         </div>
       </div>
 
@@ -230,116 +213,6 @@ export default function ChatBox() {
           </div>
         </div>
       </div>
-
-      {/* Soul Report Modal */}
-      {showReport && reportData && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={closeReport}>
-          <div className="relative bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6 animate-fade-up" onClick={e => e.stopPropagation()}>
-            <button onClick={closeReport} className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 text-sm z-10">Close</button>
-
-            {/* Soul Card */}
-            <div className="text-center mb-6 p-6 rounded-2xl relative overflow-hidden" style={{background: 'linear-gradient(135deg, #0f0f1a 0%, #1a0a2e 50%, #0f0f1a 100%)'}}>
-              <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '30px 30px'}} />
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-600/10 rounded-full blur-2xl" />
-              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-pink-600/10 rounded-full blur-2xl" />
-              <div className="relative">
-                <div className="w-10 h-10 mx-auto mb-3 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
-                  <span className="text-sm">{'💜'}</span>
-                </div>
-                <h2 className="text-2xl font-bold text-white">{reportData.report.soulType || 'Soul Type'}</h2>
-                <p className="text-zinc-400 text-xs mt-2 max-w-xs mx-auto leading-relaxed">{reportData.report.personalitySummary}</p>
-                <p className="text-zinc-500 text-xs italic mt-4 leading-relaxed border-t border-white/5 pt-3 max-w-sm mx-auto">&ldquo;{reportData.report.poeticSummary}&rdquo;</p>
-              </div>
-            </div>
-
-            {/* Detail sections */}
-            <div className="space-y-4">
-              {[
-                { label: 'Emotional Pattern', key: 'emotionalPattern' },
-                { label: 'Communication Style', key: 'communicationStyle' },
-                { label: 'Relationship Strengths', key: 'relationshipStrengths', isList: true },
-                { label: 'Relationship Risks', key: 'relationshipRisks', isList: true },
-                { label: 'Ideal Partner', key: 'idealPartner' },
-              ].map(s => {
-                const val = reportData.report[s.key]
-                if (!val) return null
-                return (
-                  <div key={s.key} className="border-t border-zinc-800 pt-3">
-                    <h3 className="text-xs text-zinc-500 uppercase tracking-wider mb-2">{s.label}</h3>
-                    {s.isList ? (
-                      <div className="flex flex-wrap gap-2">
-                        {(Array.isArray(val) ? val : [val]).filter(Boolean).map((item: string, i: number) => (
-                          <span key={i} className="px-3 py-1.5 bg-zinc-800 text-zinc-300 rounded-lg text-sm">{item}</span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-zinc-300 text-sm leading-relaxed">{val}</p>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Share - Multi Platform */}
-            <div className="mt-5 space-y-2">
-              <p className="text-xs text-zinc-600 text-center">Share your Soul Type</p>
-              <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent('My Soul Type: ' + (reportData?.report?.soulType || '')), '_blank')}
-                  className="py-2.5 bg-zinc-800 rounded-xl text-xs text-zinc-300 hover:bg-zinc-700 transition">X</button>
-                <button onClick={() => window.open('https://www.facebook.com/sharer/sharer.php?quote=' + encodeURIComponent('My Soul Type: ' + (reportData?.report?.soulType || '')), '_blank')}
-                  className="py-2.5 bg-zinc-800 rounded-xl text-xs text-zinc-300 hover:bg-zinc-700 transition">FB</button>
-                <button onClick={() => { navigator.clipboard.writeText('My Soul Type: ' + (reportData?.report?.soulType || '')); alert('Link copied!') }}
-                  className="py-2.5 bg-zinc-800 rounded-xl text-xs text-zinc-300 hover:bg-zinc-700 transition">Copy</button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => { navigator.clipboard.writeText('My Soul Type: ' + (reportData?.report?.soulType || '') + ' - Download card below'); window.open('https://www.tiktok.com/upload', '_blank') }}
-                  className="py-2.5 bg-zinc-800 rounded-xl text-xs text-zinc-400 hover:bg-zinc-700 transition">TikTok</button>
-                <button onClick={() => { navigator.clipboard.writeText('My Soul Type: ' + (reportData?.report?.soulType || '') + ' - Download card below'); window.open('https://www.instagram.com/', '_blank') }}
-                  className="py-2.5 bg-zinc-800 rounded-xl text-xs text-zinc-400 hover:bg-zinc-700 transition">Instagram</button>
-              </div>
-              <p className="text-xs text-zinc-700 text-center pt-1">Scroll up to screenshot the Soul Card</p>
-            </div>
-
-            <button onClick={closeReport}
-              className="w-full py-3 bg-white text-black rounded-xl text-sm font-medium hover:bg-zinc-200 transition mt-3">
-              Continue Chatting
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Journey Timeline Modal */}
-      {showJourney && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={() => setShowJourney(false)}>
-          <div className="relative bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-6 animate-fade-up" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowJourney(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 text-sm z-10">Close</button>
-            <div className="text-center mb-6">
-              <div className="w-10 h-10 mx-auto mb-2 bg-white/5 rounded-full flex items-center justify-center border border-white/10">
-                <span className="text-sm">{'\ud83d\udcc8'}</span>
-              </div>
-              <h2 className="text-lg font-bold text-white">Soul Journey</h2>
-              <p className="text-xs text-zinc-500 mt-1">Your emotional growth over time</p>
-            </div>
-            {(() => {
-              try {
-                const entries = JSON.parse(localStorage.getItem('sm_journey') || '[]')
-                if (entries.length === 0) return <p className="text-center text-zinc-600 text-sm py-8">No reflections yet. Generate your first weekly reflection to start your journey.</p>
-                return entries.slice().reverse().map((e: any, i: number) => {
-                  const d = new Date(e.date)
-                  const month = d.toLocaleString('en', { month: 'long', year: 'numeric' })
-                  return (
-                    <div key={i} className="border-l-2 border-zinc-800 pl-4 pb-6 relative">
-                      <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-zinc-700" />
-                      <p className="text-xs text-zinc-500 mb-1">{month}</p>
-                      <p className="text-sm text-zinc-300 leading-relaxed">{e.text}</p>
-                    </div>
-                  )
-                })
-              } catch { return <p className="text-center text-zinc-600 text-sm py-8">No entries yet.</p> }
-            })()}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

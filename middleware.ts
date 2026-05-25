@@ -1,49 +1,58 @@
-import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  let response = NextResponse.next({
+    request,
+  });
 
-  if (!supabaseUrl || !supabaseKey?.startsWith('sb')) {
-    return NextResponse.next({ request })
-  }
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
 
-  let supabaseResponse = NextResponse.next({ request })
+          response = NextResponse.next({
+            request,
+          });
 
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      getAll() { return request.cookies.getAll() },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-        supabaseResponse = NextResponse.next({ request })
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options))
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
       },
     },
-  })
+  );
 
-  const { data: { user } } = await supabase.auth.getUser()
-  const path = request.nextUrl.pathname
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const protectedPaths = ['/chat', '/profile', '/discover', '/report']
-  const isProtected = protectedPaths.some(p => path === p || path.startsWith(p + '/'))
+  const isProtectedRoute = request.nextUrl.pathname.startsWith("/chat");
 
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  if (isProtectedRoute && !user) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.searchParams.set(
+      "redirect",
+      request.nextUrl.pathname + request.nextUrl.search,
+    );
+
+    return NextResponse.redirect(redirectUrl);
   }
 
-  if (path === '/login' && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/chat'
-    return NextResponse.redirect(url)
-  }
-
-  return supabaseResponse
+  return response;
 }
 
 export const config = {
-  matcher: ['/chat', '/profile/:path*', '/discover', '/report', '/login']
-}
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
+};
