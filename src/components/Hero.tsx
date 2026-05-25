@@ -19,7 +19,7 @@ export default function Hero() {
       </p>
 
       <Link
-        href="/chat"
+        href="/login"
         className="mt-10 rounded-full bg-white px-8 py-4 text-black transition hover:scale-105"
       >
         Start Soul Analysis
