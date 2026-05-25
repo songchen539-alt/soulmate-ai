@@ -3,3 +3,4 @@ node_modules/
 .env.local
 *.pyc
 .DS_Store
+.vercel
