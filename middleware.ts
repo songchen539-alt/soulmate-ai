@@ -5,7 +5,6 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Skip middleware if Supabase not configured
   if (!supabaseUrl || !supabaseKey?.startsWith('sb')) {
     return NextResponse.next({ request })
   }
@@ -27,7 +26,6 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // Protected routes - redirect to login if not authenticated
   const protectedPaths = ['/chat', '/profile', '/discover', '/report']
   const isProtected = protectedPaths.some(p => path === p || path.startsWith(p + '/'))
 
@@ -37,8 +35,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If logged in and going to login, redirect to chat
-  if ((path === '/login' || path === '/sign-in' || path === '/sign-up') && user) {
+  if (path === '/login' && user) {
     const url = request.nextUrl.clone()
     url.pathname = '/chat'
     return NextResponse.redirect(url)
@@ -48,5 +45,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/chat', '/profile/:path*', '/discover', '/report', '/login', '/sign-in', '/sign-up']
+  matcher: ['/chat', '/profile/:path*', '/discover', '/report', '/login']
 }
