@@ -170,6 +170,8 @@ export default function ChatBox() {
           {userTurns > 0 && !analyzing && (
             <button onClick={newChat} className="text-xs text-zinc-600 hover:text-zinc-400 transition ml-1">New</button>
           )}
+          <button onClick={async () => { try { const m = await import("@/lib/supabase"); if (m.supabase) await m.supabase.auth.signOut() } catch {}; window.location.href = "/login" }}
+            className="text-xs text-zinc-700 hover:text-zinc-500 transition ml-2">Exit</button>
           {analyzing && <span className="text-xs text-zinc-500 animate-pulse">{loadingMsg}</span>}
         </div>
       </div>
