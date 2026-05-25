@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     if (mode === 'reflection') {
       const refPrompt = 'You are a calm, gentle observer. Based on this conversation, write one short reflective observation about how the person has been feeling emotionally. One sentence. Start with "This week,". Be warm and human. NOT therapy. Example: "This week, you sounded calmer with yourself."'
       const refRes = await deepseek.chat.completions.create({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-pro',
         messages: [{ role: 'system', content: refPrompt }, { role: 'user', content: conversation }],
         temperature: 0.7, max_tokens: 100
       })
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     }
 
     const response = await deepseek.chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-pro',
       messages: [
         { role: 'system', content: SOUL_SYSTEM_PROMPT + '\n\nIMPORTANT: Return ONLY valid JSON. No markdown. No explanation. No code blocks. Raw JSON only.' },
         { role: 'user', content: conversation }

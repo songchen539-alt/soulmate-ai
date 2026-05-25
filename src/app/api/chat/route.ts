@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const { messages } = await req.json()
 
     const response = await deepseek.chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'deepseek-v4-pro',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         ...messages.slice(-6)

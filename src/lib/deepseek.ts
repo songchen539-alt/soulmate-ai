@@ -7,7 +7,7 @@ export const deepseek = new OpenAI({
 
 export async function callDeepSeek(
   messages: { role: string; content: string }[],
-  model: string = 'deepseek-chat',
+  model: string = 'deepseek-v4-pro',
   temperature: number = 0.7
 ) {
   const res = await deepseek.chat.completions.create({
