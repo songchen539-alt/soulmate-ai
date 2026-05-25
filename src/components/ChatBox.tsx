@@ -48,7 +48,7 @@ export default function ChatBox() {
   const analyzingRef = useRef(false)
 
   const userTurns = messages.filter(m => m.role === 'user').length
-  const canGenerate = userTurns >= 10 && !analyzing && !loading
+  const canGenerate = userTurns >= 20 && !analyzing && !loading
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
   useEffect(() => { if (!loading && !analyzing) setTimeout(() => inputRef.current?.focus(), 100) }, [loading, analyzing])
