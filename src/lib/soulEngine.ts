@@ -17,7 +17,7 @@ export interface SoulProfile {
 
 // 从对话记录生成Soul Report
 export async function generateSoulReport(conversation: string) {
-  const response = await (deepseek as any).chat.completions.create({
+  const response = await deepseek.chat.completions.create({
     model: 'deepseek-chat',
     messages: [
       {
@@ -64,7 +64,7 @@ export async function analyzeFromChat(messages: { role: string; content: string 
 
 // AI引导问题
 export async function generateFollowUp(context: string): Promise<string> {
-  const res = await (deepseek as any).chat.completions.create({
+  const res = await deepseek.chat.completions.create({
     model: 'deepseek-chat',
     messages: [
       { role: 'system', content: '你是SoulMate AI，一个温暖的朋友。根据对话自然延续，问一个深入但不冒犯的问题。每次只问一个问题，15字内。中文。' },

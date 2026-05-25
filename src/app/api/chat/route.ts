@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json()
 
-    const response = await (deepseek as any).chat.completions.create({
+    const response = await deepseek.chat.completions.create({
       model: 'deepseek-v4-pro',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
